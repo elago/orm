@@ -2,24 +2,13 @@ package orm
 
 import (
 	"database/sql"
-	"fmt"
+	// "fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogather/com/log"
 	"reflect"
-	"strings"
 )
 
-var db *sql.DB
-var models *Model
-
-type Model struct {
-	name   string
-	fields map[string]Field
-}
-
-type Field struct {
-	sqlType string
-}
+var typeMap map[string]interface{}
 
 func init() {
 	var err error
@@ -33,12 +22,18 @@ func init() {
 	db.SetMaxIdleConns(1000)
 	db.Ping()
 
+	models = make(map[string]*Model)
+
 	// data := query("users", 8)
 	// log.Pinkln(data)
 }
 
+func TestQuery() {
+	query("users", 8)
+}
+
 // query the bean
-func query(tableName string, id int64) map[string]interface{} {
+func query(tableName string, id int64) {
 	rows, err := db.Query("SELECT * FROM `"+tableName+"` where id=? limit 1", id)
 	defer rows.Close()
 	checkErr(err)
@@ -60,48 +55,16 @@ func query(tableName string, id int64) map[string]interface{} {
 		}
 	}
 
-	return record
-}
+	model := models[tableName]
 
-func assertType(data interface{}) interface{} {
-	if valStr, ok := data.([]byte); ok {
-		return string(valStr)
-	} else if valInt, ok := data.(int); ok {
-		return int(valInt)
-	} else if valInt8, ok := data.(int8); ok {
-		return int8(valInt8)
-	} else if valInt16, ok := data.(int16); ok {
-		return int16(valInt16)
-	} else if valInt32, ok := data.(int32); ok {
-		return int32(valInt32)
-	} else if valInt64, ok := data.(int64); ok {
-		return int64(valInt64)
-	} else if valUint, ok := data.(uint); ok {
-		return uint(valUint)
-	} else if valUint8, ok := data.(uint8); ok {
-		return uint8(valUint8)
-	} else if valUint16, ok := data.(uint16); ok {
-		return uint16(valUint16)
-	} else if valUint32, ok := data.(uint32); ok {
-		return uint32(valUint32)
-	} else if valUint64, ok := data.(uint64); ok {
-		return uint64(valUint64)
-	} else if valFloat32, ok := data.(float32); ok {
-		return float32(valFloat32)
-	} else if valFloat64, ok := data.(float64); ok {
-		return float64(valFloat64)
-	} else if valBool, ok := data.(bool); ok {
-		return bool(valBool)
-	} else {
-		return data
-	}
-}
+	val := reflect.New(model.typ).Elem()
+	f := val.Field(0)
+	// TODO
+	f.SetInt(8)
+	// f.Set(8)
+	log.Greenln(f)
+	log.Pinkln(val)
 
-func checkErr(err error) {
-	if err != nil {
-		fmt.Println(err)
-		panic(err)
-	}
 }
 
 func RegisterModel(model interface{}) {
@@ -110,33 +73,26 @@ func RegisterModel(model interface{}) {
 	typ := indir.Type()
 
 	m := &Model{}
-	m.name = camel2Snake(typ.Name())
+	m.typ = typ
 	m.fields = make(map[string]Field)
 
 	for i := 0; i < indir.NumField(); i++ {
 		var f Field
-		f.sqlType = ""
+		f.sqlType = typ.Field(i).Type
 		sqlField := camel2Snake(typ.Field(i).Name)
 
 		m.fields[sqlField] = f
 	}
 
-	log.Pinkln(m)
+	// log.Pinkln(m)
+
+	// log.Pinkf("put [%s] into [%s] \n", m.name, m)
+	models[camel2Snake(typ.Name())] = m
 }
 
-func camel2Snake(s string) string {
-	data := make([]byte, 0, len(s)*2)
-	j := false
-	num := len(s)
-	for i := 0; i < num; i++ {
-		d := s[i]
-		if i > 0 && d >= 'A' && d <= 'Z' && j {
-			data = append(data, '_')
-		}
-		if d != '_' {
-			j = true
-		}
-		data = append(data, d)
-	}
-	return strings.ToLower(string(data[:]))
+func getTypeName(model interface{}) string {
+	value := reflect.ValueOf(model)
+	indir := reflect.Indirect(value)
+	typ := indir.Type()
+	return typ.Name()
 }
