@@ -59,8 +59,12 @@ func query(tableName string, id int64) {
 
 	val := reflect.New(model.typ).Elem()
 	f := val.Field(0)
+	f1 := val.Field(1)
 	// TODO
-	f.SetInt(8)
+	// log.Yellowln(f.Type().Name())
+	// f.SetInt(8)
+	assignField(&f, 8)
+	assignField(&f1, "hello")
 	// f.Set(8)
 	log.Greenln(f)
 	log.Pinkln(val)
