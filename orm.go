@@ -6,9 +6,20 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogather/com/log"
 	"reflect"
+	"strings"
 )
 
 var db *sql.DB
+var models *Model
+
+type Model struct {
+	name   string
+	fields map[string]Field
+}
+
+type Field struct {
+	sqlType string
+}
 
 func init() {
 	var err error
@@ -22,8 +33,8 @@ func init() {
 	db.SetMaxIdleConns(1000)
 	db.Ping()
 
-	data := query("users", 8)
-	log.Pinkln(data)
+	// data := query("users", 8)
+	// log.Pinkln(data)
 }
 
 // query the bean
@@ -95,8 +106,37 @@ func checkErr(err error) {
 
 func RegisterModel(model interface{}) {
 	value := reflect.ValueOf(model)
-	typ := value.Type()
-	for i := 0; i < value.NumMethod(); i++ {
-		fmt.Printf("method[%d]%s\n", i, typ.Method(i).Name)
+	indir := reflect.Indirect(value)
+	typ := indir.Type()
+
+	m := &Model{}
+	m.name = camel2Snake(typ.Name())
+	m.fields = make(map[string]Field)
+
+	for i := 0; i < indir.NumField(); i++ {
+		var f Field
+		f.sqlType = ""
+		sqlField := camel2Snake(typ.Field(i).Name)
+
+		m.fields[sqlField] = f
 	}
+
+	log.Pinkln(m)
+}
+
+func camel2Snake(s string) string {
+	data := make([]byte, 0, len(s)*2)
+	j := false
+	num := len(s)
+	for i := 0; i < num; i++ {
+		d := s[i]
+		if i > 0 && d >= 'A' && d <= 'Z' && j {
+			data = append(data, '_')
+		}
+		if d != '_' {
+			j = true
+		}
+		data = append(data, d)
+	}
+	return strings.ToLower(string(data[:]))
 }
