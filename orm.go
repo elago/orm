@@ -28,12 +28,12 @@ func init() {
 	// log.Pinkln(data)
 }
 
-func TestQuery() {
-	query("users", 8)
+func TestQuery() interface{} {
+	return query("users", 8)
 }
 
 // query the bean
-func query(tableName string, id int64) {
+func query(tableName string, id int64) interface{} {
 	rows, err := db.Query("SELECT * FROM `"+tableName+"` where id=? limit 1", id)
 	defer rows.Close()
 	checkErr(err)
@@ -45,30 +45,23 @@ func query(tableName string, id int64) {
 		scanArgs[j] = &values[j]
 	}
 
-	record := make(map[string]interface{})
+	model := models[tableName]
+	val := reflect.New(model.typ).Elem()
+
 	for rows.Next() {
 		err = rows.Scan(scanArgs...)
 		for i, col := range values {
 			if col != nil {
-				record[columns[i]] = assertType(col)
+				fieldName := snake2Camel(columns[i])
+				f := val.FieldByName(fieldName)
+				if f.IsValid() {
+					assignField(&f, assertType(col))
+				}
 			}
 		}
 	}
 
-	model := models[tableName]
-
-	val := reflect.New(model.typ).Elem()
-	f := val.Field(0)
-	f1 := val.Field(1)
-	// TODO
-	// log.Yellowln(f.Type().Name())
-	// f.SetInt(8)
-	assignField(&f, 8)
-	assignField(&f1, "hello")
-	// f.Set(8)
-	log.Greenln(f)
-	log.Pinkln(val)
-
+	return val.Interface()
 }
 
 func RegisterModel(model interface{}) {

@@ -24,6 +24,30 @@ func camel2Snake(s string) string {
 	return strings.ToLower(string(data[:]))
 }
 
+func snake2Camel(s string) string {
+	data := make([]byte, 0, len(s))
+	j := false
+	k := false
+	num := len(s) - 1
+	for i := 0; i <= num; i++ {
+		d := s[i]
+		if k == false && d >= 'A' && d <= 'Z' {
+			k = true
+		}
+		if d >= 'a' && d <= 'z' && (j || k == false) {
+			d = d - 32
+			j = false
+			k = true
+		}
+		if k && d == '_' && num > i && s[i+1] >= 'a' && s[i+1] <= 'z' {
+			j = true
+			continue
+		}
+		data = append(data, d)
+	}
+	return string(data[:])
+}
+
 func assertType(data interface{}) interface{} {
 	if valStr, ok := data.([]byte); ok {
 		return string(valStr)
@@ -97,15 +121,15 @@ func assignField(f *reflect.Value, value interface{}) {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		f.SetInt(assertWideType(value).(int64))
 	case reflect.Float32, reflect.Float64:
-		f.SetFloat(value.(float64))
+		f.SetFloat(assertWideType(value).(float64))
 	case reflect.String:
-		f.SetString(value.(string))
+		f.SetString(assertWideType(value).(string))
 	case reflect.Struct:
-		f.SetBytes(value.([]byte))
+		f.SetBytes(assertWideType(value).([]byte))
 	case reflect.Bool:
-		f.SetBool(value.(bool))
+		f.SetBool(assertWideType(value).(bool))
 	default:
-		f.SetBytes(value.([]byte))
+		f.SetBytes(assertWideType(value).([]byte))
 	}
 }
 
