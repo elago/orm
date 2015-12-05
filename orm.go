@@ -3,6 +3,7 @@ package orm
 import (
 	"database/sql"
 	// "fmt"
+	// "github.com/elago/webapp/model"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogather/com/log"
 	"reflect"
@@ -28,15 +29,19 @@ func init() {
 	// log.Pinkln(data)
 }
 
-func TestQuery() interface{} {
-	return query("users", 8)
-}
-
 // query the bean
-func query(tableName string, id int64) interface{} {
+func Get(object interface{}) error {
+	tableName := camel2Snake(getTypeName(object))
+
+	val := reflect.ValueOf(object).Elem()
+	fid := val.FieldByName("Id")
+	id := fid.Int()
+
 	rows, err := db.Query("SELECT * FROM `"+tableName+"` where id=? limit 1", id)
 	defer rows.Close()
-	checkErr(err)
+	if err != nil {
+		return err
+	}
 
 	columns, _ := rows.Columns()
 	scanArgs := make([]interface{}, len(columns))
@@ -44,9 +49,6 @@ func query(tableName string, id int64) interface{} {
 	for j := range values {
 		scanArgs[j] = &values[j]
 	}
-
-	model := models[tableName]
-	val := reflect.New(model.typ).Elem()
 
 	for rows.Next() {
 		err = rows.Scan(scanArgs...)
@@ -61,7 +63,9 @@ func query(tableName string, id int64) interface{} {
 		}
 	}
 
-	return val.Interface()
+	object = val.Interface()
+
+	return nil
 }
 
 func RegisterModel(model interface{}) {
